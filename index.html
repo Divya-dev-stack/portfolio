@@ -1882,6 +1882,20 @@
         return;
       }
 
+            /* ---- normalise phone: accepts +91 xxxxx, 91xxxxx, or just 10 digits ---- */
+      const payload = Object.fromEntries(new FormData(form));
+      const rawPhone = (payload.phone || '').trim();
+      if(rawPhone){
+        let digits = rawPhone.replace(/\D/g, '');          // remove +, spaces, -, ( )
+        if(digits.startsWith('0')) digits = digits.replace(/^0+/, '');
+        if(digits.length === 10) digits = '91' + digits;   // no country code -> add 91
+        if(digits.length < 10 || digits.length > 15){
+          setStatus('Please enter a valid phone number.', 'err');
+          return;
+        }
+        payload.phone = digits;
+      }
+
       btn.disabled = true;
       label.textContent = 'Sending...';
       setStatus('', '');
@@ -1890,7 +1904,7 @@
         const res = await fetch('https://api.web3forms.com/submit', {
           method: 'POST',
           headers: {'Content-Type':'application/json','Accept':'application/json'},
-          body: JSON.stringify(Object.fromEntries(new FormData(form)))
+                    body: JSON.stringify(payload)
         });
         const data = await res.json();
         if(res.ok && data.success){
