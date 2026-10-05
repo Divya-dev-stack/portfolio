@@ -682,7 +682,11 @@
     padding:13px 14px;color:var(--text);font-family:'Sora',sans-serif;font-size:13.5px;
   }
   .form-group input:focus, .form-group textarea:focus{outline:none;border-color:var(--gold);}
-  .form-group textarea{resize:vertical;min-height:110px;}
+    .form-group textarea{resize:vertical;min-height:110px;}
+  .form-submit:disabled{opacity:.65;cursor:not-allowed;}
+  .form-status{margin-top:14px;font-size:12.5px;line-height:1.5;min-height:18px;}
+  .form-status.ok{color:#4ade80;}
+  .form-status.err{color:#f2726f;}
   .form-submit{
     margin-top:6px;width:100%;background:linear-gradient(135deg,var(--gold-soft),var(--gold));
     color:#1a1305;font-weight:700;font-size:12px;padding:15px;border-radius:12px;border:none;cursor:pointer;
@@ -1558,16 +1562,21 @@
         </div>
       </div>
 
-      <div class="inquiry-card reveal" id="contactForm" style="scroll-margin-top:100px;">
+           <form class="inquiry-card reveal" id="contactForm" style="scroll-margin-top:100px;" novalidate>
+        <input type="hidden" name="access_key" value="80de2318-afe4-4449-a46e-d43387d4eaae">
+        <input type="hidden" name="subject" value="New enquiry from Divya.dev Portfolio">
+        <input type="hidden" name="from_name" value="Divya.dev Portfolio">
+
         <div class="inquiry-label"><svg class="ic"><use href="#i-send"/></svg> DIRECT INQUIRY DESK</div>
         <div class="form-row">
-          <div class="form-group"><label>YOUR FULL NAME <span class="req">*</span></label><input type="text" placeholder="e.g. Client Name"></div>
-          <div class="form-group"><label>BUSINESS EMAIL <span class="req">*</span></label><input type="email" placeholder="e.g. name@company.com"></div>
+          <div class="form-group"><label>YOUR FULL NAME <span class="req">*</span></label><input type="text" name="name" placeholder="e.g. Client Name" required></div>
+          <div class="form-group"><label>BUSINESS EMAIL <span class="req">*</span></label><input type="email" name="email" placeholder="e.g. name@company.com" required></div>
         </div>
-        <div class="form-group" style="margin-bottom:16px;"><label>CONTACT PHONE NUMBER</label><input type="text" placeholder="e.g. +91 74182 50765"></div>
-        <div class="form-group" style="margin-bottom:20px;"><label>DETAILED MESSAGE <span class="req">*</span></label><textarea placeholder="Describe your project requirements, features and timeline..."></textarea></div>
-        <button class="form-submit"><svg class="ic"><use href="#i-send"/></svg> Send Message</button>
-      </div>
+        <div class="form-group" style="margin-bottom:16px;"><label>CONTACT PHONE NUMBER</label><input type="tel" name="phone" placeholder="e.g. +91 74182 50765"></div>
+        <div class="form-group" style="margin-bottom:20px;"><label>DETAILED MESSAGE <span class="req">*</span></label><textarea name="message" placeholder="Describe your project requirements, features and timeline..." required></textarea></div>
+        <button type="submit" class="form-submit" id="sendBtn"><svg class="ic"><use href="#i-send"/></svg> <span>Send Message</span></button>
+        <div class="form-status" id="formStatus" role="status" aria-live="polite"></div>
+      </form>
     </div>
   </div>
 </section>
@@ -1844,6 +1853,60 @@
       }, 800);
     });
   });
+
+    /* ===== CONTACT FORM -> sends mail via Web3Forms ===== */
+  (function(){
+    const form = document.getElementById('contactForm');
+    if(!form) return;
+    const btn = document.getElementById('sendBtn');
+    const label = btn.querySelector('span');
+    const statusEl = document.getElementById('formStatus');
+
+    function setStatus(msg, type){
+      statusEl.textContent = msg;
+      statusEl.className = 'form-status ' + (type || '');
+    }
+
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+
+      const name = form.name.value.trim();
+      const email = form.email.value.trim();
+      const message = form.message.value.trim();
+      if(!name || !email || !message){
+        setStatus('Please fill in your name, email and message.', 'err');
+        return;
+      }
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        setStatus('Please enter a valid email address.', 'err');
+        return;
+      }
+
+      btn.disabled = true;
+      label.textContent = 'Sending...';
+      setStatus('', '');
+
+      try{
+        const res = await fetch('https://api.web3forms.com/submit', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','Accept':'application/json'},
+          body: JSON.stringify(Object.fromEntries(new FormData(form)))
+        });
+        const data = await res.json();
+        if(res.ok && data.success){
+          setStatus('✓ Message sent! I will get back to you soon.', 'ok');
+          form.reset();
+        } else {
+          setStatus(data.message || 'Something went wrong. Please try again.', 'err');
+        }
+      } catch(err){
+        setStatus('Network error. Please check your connection and try again.', 'err');
+      } finally {
+        btn.disabled = false;
+        label.textContent = 'Send Message';
+      }
+    });
+  })();
 
   /* Failsafe: if the loader animation is ever blocked, still start the site */
   setTimeout(()=>{ if(document.body.classList.contains('loading')){ document.body.classList.remove('loading'); } }, 8000);
